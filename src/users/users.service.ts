@@ -5,16 +5,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { randomUUID } from 'crypto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ListUsersQueryDto } from './dto/list-users.query.dto';
-
-export type PaginatedResult<T> = {
-  data: T[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-};
+import type { PaginatedResult } from '../common/types';
 
 @Injectable()
 export class UsersService {

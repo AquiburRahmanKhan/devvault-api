@@ -1,8 +1,17 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 const toInt = (v: unknown) => {
-  const n = typeof v === 'string' ? Number(v) : NaN;
+  if (typeof v !== 'string') return v;
+  const n = Number(v);
   return Number.isFinite(n) ? n : v;
 };
 
@@ -30,5 +39,6 @@ export class ListUsersQueryDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(1)
   search?: string;
 }

@@ -12,7 +12,7 @@ import {
   HttpStatus,
   Query,
 } from '@nestjs/common';
-import type { PaginatedResult } from './users.service';
+import type { PaginatedResult } from '../common/types';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
