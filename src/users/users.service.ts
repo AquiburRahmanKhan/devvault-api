@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import type { PaginatedResult } from '../common/types';
 import type { CreateUserDto, UpdateUserDto, ListUsersQueryDto } from './dto';
 import type { User } from './user.entity';
@@ -64,16 +65,9 @@ export class UsersService {
   }
 
   async create(input: CreateUserDto): Promise<User> {
-    const normalizedEmail = input.email.toLowerCase();
+  const normalizedEmail = input.email.toLowerCase();
 
-    const existing = await this.prisma.client.user.findUnique({
-      where: { email: normalizedEmail },
-    });
-
-    if (existing) {
-      throw new ConflictException('Email already exists');
-    }
-
+  try {
     const user = await this.prisma.client.user.create({
       data: {
         email: normalizedEmail,
@@ -82,32 +76,45 @@ export class UsersService {
     });
 
     return toUserEntity(user);
-  }
-
-  async update(id: string, input: UpdateUserDto): Promise<User | undefined> {
-    const existing = await this.prisma.client.user.findUnique({ where: { id } });
-    if (!existing) return undefined;
-
-    if (input.email !== undefined) {
-      const emailOwner = await this.prisma.client.user.findUnique({
-        where: { email: input.email.toLowerCase() },
-      });
-
-      if (emailOwner && emailOwner.id !== id) {
-        throw new ConflictException('Email already exists');
-      }
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException('Email already exists');
     }
 
+    throw error;
+  }
+}
+
+async update(id: string, input: UpdateUserDto): Promise<User | undefined> {
+  const existing = await this.prisma.client.user.findUnique({ where: { id } });
+  if (!existing) return undefined;
+
+  try {
     const user = await this.prisma.client.user.update({
       where: { id },
       data: {
-        ...(input.email !== undefined ? { email: input.email.toLowerCase() } : {}),
+        ...(input.email !== undefined
+          ? { email: input.email.toLowerCase() }
+          : {}),
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       },
     });
 
     return toUserEntity(user);
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException('Email already exists');
+    }
+
+    throw error;
   }
+}
 
   async delete(id: string): Promise<boolean> {
     const existing = await this.prisma.client.user.findUnique({ where: { id } });
