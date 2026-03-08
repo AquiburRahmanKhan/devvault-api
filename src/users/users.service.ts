@@ -1,12 +1,13 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import type { PaginatedResult } from '../common/types';
 import type { CreateUserDto, UpdateUserDto, ListUsersQueryDto } from './dto';
 import type { User } from './user.entity';
+import { toUserEntity } from './users.mapper';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async list(query: ListUsersQueryDto): Promise<PaginatedResult<User>> {
     const page = query.page ?? 1;
@@ -24,9 +25,9 @@ export class UsersService {
         }
       : {};
 
-    const [total, users] = await Promise.all([
-      this.prisma.user.count({ where }),
-      this.prisma.user.findMany({
+    const [total, users] = await this.prisma.client.$transaction([
+      this.prisma.client.user.count({ where }),
+      this.prisma.client.user.findMany({
         where,
         orderBy: { [sort]: order },
         skip: (page - 1) * limit,
@@ -35,11 +36,7 @@ export class UsersService {
     ]);
 
     return {
-      data: users.map((user) => ({
-        ...user,
-        createdAt: user.createdAt.toISOString(),
-        updatedAt: user.updatedAt.toISOString(),
-      })),
+      data: users.map(toUserEntity),
       meta: {
         page,
         limit,
@@ -50,34 +47,26 @@ export class UsersService {
   }
 
   async findById(id: string): Promise<User | undefined> {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.client.user.findUnique({ where: { id } });
     if (!user) return undefined;
 
-    return {
-      ...user,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    };
+    return toUserEntity(user);
   }
 
   async findByEmail(email: string): Promise<User | undefined> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.client.user.findUnique({
       where: { email: email.toLowerCase() },
     });
 
     if (!user) return undefined;
 
-    return {
-      ...user,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    };
+    return toUserEntity(user);
   }
 
   async create(input: CreateUserDto): Promise<User> {
     const normalizedEmail = input.email.toLowerCase();
 
-    const existing = await this.prisma.user.findUnique({
+    const existing = await this.prisma.client.user.findUnique({
       where: { email: normalizedEmail },
     });
 
@@ -85,26 +74,22 @@ export class UsersService {
       throw new ConflictException('Email already exists');
     }
 
-    const user = await this.prisma.user.create({
+    const user = await this.prisma.client.user.create({
       data: {
         email: normalizedEmail,
         name: input.name.trim(),
       },
     });
 
-    return {
-      ...user,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    };
+    return toUserEntity(user);
   }
 
   async update(id: string, input: UpdateUserDto): Promise<User | undefined> {
-    const existing = await this.prisma.user.findUnique({ where: { id } });
+    const existing = await this.prisma.client.user.findUnique({ where: { id } });
     if (!existing) return undefined;
 
     if (input.email !== undefined) {
-      const emailOwner = await this.prisma.user.findUnique({
+      const emailOwner = await this.prisma.client.user.findUnique({
         where: { email: input.email.toLowerCase() },
       });
 
@@ -113,7 +98,7 @@ export class UsersService {
       }
     }
 
-    const user = await this.prisma.user.update({
+    const user = await this.prisma.client.user.update({
       where: { id },
       data: {
         ...(input.email !== undefined ? { email: input.email.toLowerCase() } : {}),
@@ -121,18 +106,14 @@ export class UsersService {
       },
     });
 
-    return {
-      ...user,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    };
+    return toUserEntity(user);
   }
 
   async delete(id: string): Promise<boolean> {
-    const existing = await this.prisma.user.findUnique({ where: { id } });
+    const existing = await this.prisma.client.user.findUnique({ where: { id } });
     if (!existing) return false;
 
-    await this.prisma.user.delete({ where: { id } });
+    await this.prisma.client.user.delete({ where: { id } });
     return true;
   }
 }

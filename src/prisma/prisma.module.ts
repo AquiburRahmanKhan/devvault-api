@@ -11,6 +11,6 @@ import { createPrismaClient, PrismaService } from './prisma.service';
     },
     PrismaService,
   ],
-  exports: [PrismaClient, PrismaService],
+  exports: [PrismaService],
 })
 export class PrismaModule {}
