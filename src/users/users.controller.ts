@@ -14,47 +14,46 @@ import {
 } from '@nestjs/common';
 import type { PaginatedResult } from '../common/types';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto, UpdateUserDto } from './dto';
+import type { ListUsersQueryDto } from './dto';
 import type { User } from './user.entity';
-import { ListUsersQueryDto } from './dto/list-users.query.dto';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  list(@Query() query: ListUsersQueryDto): PaginatedResult<User> {
+  async list(@Query() query: ListUsersQueryDto): Promise<PaginatedResult<User>> {
     return this.usersService.list(query);
   }
 
   @Get(':id')
-  get(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): User {
-    const user = this.usersService.findById(id);
+  async get(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): Promise<User> {
+    const user = await this.usersService.findById(id);
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() body: CreateUserDto): User {
+  async create(@Body() body: CreateUserDto): Promise<User> {
     return this.usersService.create(body);
   }
 
   @Patch(':id')
-  update(
+  async update(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: UpdateUserDto,
-  ): User {
-    const user = this.usersService.update(id, body);
+  ): Promise<User> {
+    const user = await this.usersService.update(id, body);
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): void {
-    const deleted = this.usersService.delete(id);
+  async remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): Promise<void> {
+    const deleted = await this.usersService.delete(id);
     if (!deleted) throw new NotFoundException('User not found');
   }
 }
