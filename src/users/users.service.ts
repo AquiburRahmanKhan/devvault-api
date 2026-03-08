@@ -5,6 +5,7 @@ import type { PaginatedResult } from '../common/types';
 import type { CreateUserDto, UpdateUserDto, ListUsersQueryDto } from './dto';
 import type { User } from './user.entity';
 import { toUserEntity } from './users.mapper';
+import { handlePrismaError } from '../common/prisma-error';
 
 @Injectable()
 export class UsersService {
@@ -77,14 +78,7 @@ export class UsersService {
 
     return toUserEntity(user);
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
-      throw new ConflictException('Email already exists');
-    }
-
-    throw error;
+    handlePrismaError(error, { uniqueMessage: 'Email already exists' });
   }
 }
 
@@ -105,14 +99,7 @@ async update(id: string, input: UpdateUserDto): Promise<User | undefined> {
 
     return toUserEntity(user);
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
-      throw new ConflictException('Email already exists');
-    }
-
-    throw error;
+    handlePrismaError(error, { uniqueMessage: 'Email already exists' });
   }
 }
 
