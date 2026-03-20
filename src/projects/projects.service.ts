@@ -80,9 +80,9 @@ export class ProjectsService {
     return toProjectEntity(project);
   }
 
-  async create(input: CreateProjectDto): Promise<Project> {
+  async create(ownerId: string, input: CreateProjectDto): Promise<Project> {
     const owner = await this.prisma.client.user.findUnique({
-      where: { id: input.ownerId },
+      where: { id: ownerId },
     });
 
     if (!owner) {
@@ -94,8 +94,8 @@ export class ProjectsService {
     const project = await this.prisma.client.project.create({
       data: {
         name: input.name.trim(),
-        description: normalizedDescription ?? null,
-        ownerId: input.ownerId,
+        description: normalizedDescription ? normalizedDescription : null,
+        ownerId,
       },
     });
 
