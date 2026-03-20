@@ -33,9 +33,10 @@ export class ProjectsController {
   @Get()
   @UseGuards(JwtAuthGuard)
   async list(
+    @CurrentUser() user: AuthUser,
     @Query() query: ListProjectsQueryDto,
   ): Promise<PaginatedResult<Project>> {
-    return this.projectsService.list(query);
+    return this.projectsService.list(user.id, query);
   }
 
   @Get(':id')

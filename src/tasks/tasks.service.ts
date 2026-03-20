@@ -9,7 +9,35 @@ import { toTaskEntity } from './task.mapper';
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(query: ListTasksQueryDto): Promise<PaginatedResult<Task>> {
+  private async ensureProjectOwnership(projectId: string, ownerId: string) {
+    const project = await this.prisma.client.project.findUnique({
+      where: { id: projectId },
+    });
+
+    if (!project) return undefined;
+    if (project.ownerId !== ownerId) return null;
+
+    return project;
+  }
+
+  private async ensureTaskOwnership(taskId: string, ownerId: string) {
+    const task = await this.prisma.client.task.findUnique({
+      where: { id: taskId },
+      include: {
+        project: true,
+      },
+    });
+
+    if (!task) return undefined;
+    if (task.project.ownerId !== ownerId) return null;
+
+    return task;
+  }
+
+  async list(
+    ownerId: string,
+    query: ListTasksQueryDto,
+  ): Promise<PaginatedResult<Task>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const sort = query.sort ?? 'createdAt';
@@ -17,6 +45,9 @@ export class TasksService {
     const projectId = query.projectId;
 
     const where = {
+      project: {
+        ownerId,
+      },
       ...(projectId ? { projectId } : {}),
     };
 
@@ -51,14 +82,14 @@ export class TasksService {
     return toTaskEntity(task);
   }
 
-  async create(input: CreateTaskDto): Promise<Task> {
-    const project = await this.prisma.client.project.findUnique({
-      where: { id: input.projectId },
-    });
+  async create(
+    ownerId: string,
+    input: CreateTaskDto,
+  ): Promise<Task | undefined | null> {
+    const project = await this.ensureProjectOwnership(input.projectId, ownerId);
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
+    if (project === undefined) return undefined;
+    if (project === null) return null;
 
     const normalizedDescription = input.description?.trim();
 
@@ -74,12 +105,15 @@ export class TasksService {
     return toTaskEntity(task);
   }
 
-  async update(id: string, input: UpdateTaskDto): Promise<Task | undefined> {
-    const existing = await this.prisma.client.task.findUnique({
-      where: { id },
-    });
+  async update(
+    id: string,
+    ownerId: string,
+    input: UpdateTaskDto,
+  ): Promise<Task | undefined | null> {
+    const existing = await this.ensureTaskOwnership(id, ownerId);
 
-    if (!existing) return undefined;
+    if (existing === undefined) return undefined;
+    if (existing === null) return null;
 
     const task = await this.prisma.client.task.update({
       where: { id },
@@ -95,12 +129,11 @@ export class TasksService {
     return toTaskEntity(task);
   }
 
-  async delete(id: string): Promise<boolean> {
-    const existing = await this.prisma.client.task.findUnique({
-      where: { id },
-    });
+  async delete(id: string, ownerId: string): Promise<boolean | null> {
+    const existing = await this.ensureTaskOwnership(id, ownerId);
 
-    if (!existing) return false;
+    if (existing === undefined) return false;
+    if (existing === null) return null;
 
     await this.prisma.client.task.delete({
       where: { id },

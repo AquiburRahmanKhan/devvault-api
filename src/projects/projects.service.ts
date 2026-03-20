@@ -24,19 +24,27 @@ export class ProjectsService {
     return project;
   }
 
-  async list(query: ListProjectsQueryDto): Promise<PaginatedResult<Project>> {
+  async list(
+    ownerId: string,
+    query: ListProjectsQueryDto,
+  ): Promise<PaginatedResult<Project>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const sort = query.sort ?? 'createdAt';
     const order = query.order ?? 'desc';
     const search = query.search?.trim();
-    const ownerId = query.ownerId;
 
     const where = {
+      ownerId,
       ...(search
         ? {
             OR: [
-              { name: { contains: search, mode: 'insensitive' as const } },
+              {
+                name: {
+                  contains: search,
+                  mode: 'insensitive' as const,
+                },
+              },
               {
                 description: {
                   contains: search,
@@ -46,7 +54,6 @@ export class ProjectsService {
             ],
           }
         : {}),
-      ...(ownerId ? { ownerId } : {}),
     };
 
     const [total, projects] = await this.prisma.client.$transaction([
