@@ -11,27 +11,43 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { UserResponse } from './responses/user.response';
 import type { PaginatedResult } from '../common/types';
 import { UsersService } from './users.service';
+import { serialize } from '../common/utils/serialize';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import type { ListUsersQueryDto } from './dto';
 import type { User } from './user.entity';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  async list(@Query() query: ListUsersQueryDto): Promise<PaginatedResult<User>> {
-    return this.usersService.list(query);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async list(
+    @Query() query: ListUsersQueryDto,
+  ): Promise<PaginatedResult<UserResponse>> {
+    const result = await this.usersService.list(query);
+    return {
+      ...result,
+      data: result.data.map((user) => serialize(UserResponse, user)),
+    };
   }
 
   @Get(':id')
-  async get(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): Promise<User> {
+  async get(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<UserResponse> {
     const user = await this.usersService.findById(id);
     if (!user) throw new NotFoundException('User not found');
-    return user;
+    return serialize(UserResponse, user);
   }
 
   @Post()
@@ -52,7 +68,9 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): Promise<void> {
+  async remove(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<void> {
     const deleted = await this.usersService.delete(id);
     if (!deleted) throw new NotFoundException('User not found');
   }
