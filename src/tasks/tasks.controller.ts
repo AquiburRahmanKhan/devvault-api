@@ -21,6 +21,8 @@ import { TasksService } from './tasks.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthUser } from '../auth/auth-user.type';
+import { serialize } from '../common/utils/serialize';
+import { TaskResponse } from './responses/task.response';
 
 @Controller('tasks')
 export class TasksController {
@@ -31,17 +33,17 @@ export class TasksController {
   async list(
     @CurrentUser() user: AuthUser,
     @Query() query: ListTasksQueryDto,
-  ): Promise<PaginatedResult<Task>> {
+  ): Promise<PaginatedResult<TaskResponse>> {
     return this.tasksService.list(user.id, query);
   }
 
   @Get(':id')
   async get(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ): Promise<Task> {
+  ): Promise<TaskResponse> {
     const task = await this.tasksService.findById(id);
     if (!task) throw new NotFoundException('Task not found');
-    return task;
+    return serialize(TaskResponse, task);
   }
 
   @Post()
@@ -50,7 +52,7 @@ export class TasksController {
   async create(
     @CurrentUser() user: AuthUser,
     @Body() body: CreateTaskDto,
-  ): Promise<Task> {
+  ): Promise<TaskResponse> {
     const task = await this.tasksService.create(user.id, body);
 
     if (task === undefined) throw new NotFoundException('Project not found');
@@ -58,7 +60,7 @@ export class TasksController {
       throw new ForbiddenException('You do not own this project');
     }
 
-    return task;
+    return serialize(TaskResponse, task);
   }
 
   @Patch(':id')
@@ -67,7 +69,7 @@ export class TasksController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser() user: AuthUser,
     @Body() body: UpdateTaskDto,
-  ): Promise<Task> {
+  ): Promise<TaskResponse> {
     const task = await this.tasksService.update(id, user.id, body);
 
     if (task === undefined) throw new NotFoundException('Task not found');
@@ -75,7 +77,7 @@ export class TasksController {
       throw new ForbiddenException('You do not own this task');
     }
 
-    return task;
+    return serialize(TaskResponse, task);
   }
 
   @Delete(':id')

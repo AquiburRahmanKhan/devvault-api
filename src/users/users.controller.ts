@@ -20,9 +20,9 @@ import { serialize } from '../common/utils/serialize';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import type { ListUsersQueryDto } from './dto';
 import type { User } from './user.entity';
-import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { AdminOnly } from 'src/auth/admin-only.decorator';
 
 @Controller('users')
 export class UsersController {
@@ -30,7 +30,7 @@ export class UsersController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @AdminOnly()
   async list(
     @Query() query: ListUsersQueryDto,
   ): Promise<PaginatedResult<UserResponse>> {

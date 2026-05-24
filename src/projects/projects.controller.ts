@@ -25,6 +25,8 @@ import { ProjectsService } from './projects.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthUser } from '../auth/auth-user.type';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { serialize } from '../common/utils/serialize';
+import { ProjectResponse } from './responses/project.response';
 
 @Controller('projects')
 export class ProjectsController {
@@ -35,17 +37,22 @@ export class ProjectsController {
   async list(
     @CurrentUser() user: AuthUser,
     @Query() query: ListProjectsQueryDto,
-  ): Promise<PaginatedResult<Project>> {
-    return this.projectsService.list(user.id, query);
+  ): Promise<PaginatedResult<ProjectResponse>> {
+    const result = await this.projectsService.list(user.id, query);
+
+    return {
+      ...result,
+      data: result.data.map((project) => serialize(ProjectResponse, project)),
+    };
   }
 
   @Get(':id')
   async get(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ): Promise<Project> {
+  ): Promise<ProjectResponse> {
     const project = await this.projectsService.findById(id);
     if (!project) throw new NotFoundException('Project not found');
-    return project;
+    return serialize(ProjectResponse, project);
   }
 
   @Post()
@@ -54,8 +61,9 @@ export class ProjectsController {
   async create(
     @CurrentUser() user: AuthUser,
     @Body() body: CreateProjectDto,
-  ): Promise<Project> {
-    return this.projectsService.create(user.id, body);
+  ): Promise<ProjectResponse> {
+    const project = await this.projectsService.create(user.id, body);
+    return serialize(ProjectResponse, project);
   }
 
   @Patch(':id')
@@ -64,14 +72,14 @@ export class ProjectsController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser() user: AuthUser,
     @Body() body: UpdateProjectDto,
-  ): Promise<Project> {
+  ): Promise<ProjectResponse> {
     const project = await this.projectsService.update(id, user.id, body);
 
     if (project === undefined) throw new NotFoundException('Project not found');
     if (project === null)
       throw new ForbiddenException('You do not own this project');
 
-    return project;
+    return serialize(ProjectResponse, project);
   }
 
   @Delete(':id')
